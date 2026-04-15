@@ -231,15 +231,20 @@ bool Webview::CreateSurface(
 
   webview_controller_->put_IsVisible(true);
 
-  // For headless webviews, set bounds to off-screen with reasonable size
-  // to prevent input capture while maintaining proper viewport dimensions
+  // For headless webviews, keep the WebView2 viewport at a valid on-screen
+  // rect so GPU rendering stays active (needed for mp4/m3u8 source probing)
+  // and the site-facing viewport looks normal. Then translate the composition
+  // root off-screen via IVisual::Offset so DWM never composes it onto the
+  // desktop. This avoids the Win10 artifact where negative Bounds leak a
+  // 1280x720 transparent rect onto the desktop.
   if (is_headless) {
     RECT bounds;
-    bounds.left = -32000;
-    bounds.top = -32000;
-    bounds.right = -32000 + 1280;
-    bounds.bottom = -32000 + 720;
+    bounds.left = 0;
+    bounds.top = 0;
+    bounds.right = 1280;
+    bounds.bottom = 720;
     webview_controller_->put_Bounds(bounds);
+    surface_->put_Offset({-32000.0f, -32000.0f, 0.0f});
   }
 
   return true;
